@@ -1,13 +1,19 @@
-# Vehicle Kinematics Demo
+# Vehicle Kinematic Control Demo
 
-This repository shows a minimalist 6-DOF kinematic model in MATLAB:
-- `params.m`       : define body‐rate commands & sim settings  
-- `runSimulation.m`: integrates using `ode45`  
-- `kinematics.m`   : computes η̇ = J(η)·ν  
-- `rotationMatrices.m`: helper to build R(φ,θ,ψ) & T(φ,θ)  
-- `animateTrajectory.m`: plots & animates the result  
+## Files
 
-## Quick start  
-1. Open MATLAB in this folder  
-2. Run `runSimulation`  
-3. Then call `animateTrajectory(t,η)`  
+- `simulationParameters.m`     : kinematic sim settings & body-rates  
+- `computeRotationMatrices.m`  : build R(φ,θ,ψ) & T(φ,θ)  
+- `computeKinematicsMap.m`     : η̇ = J(η)·ν  
+- `simulateKinematics.m`       : runs kinematic sim with `ode45`  
+- `visualizeTrajectory.m`      : live animation + GIF export (box or STL)  
+- `controlParameters.m`        : controller gains, setpoints, timing  
+- `vehicleControlModel.slx`    : Simulink plant + controller  
+- `simulateControlSystem.m`    : runs the closed-loop sim & visualizes  
+
+## Quickstart
+
+1. Run the open-loop kinematic sim:
+   ```matlab
+   simulateKinematics
+   visualizeTrajectory('box','open_loop_box.gif')
