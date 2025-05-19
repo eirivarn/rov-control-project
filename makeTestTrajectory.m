@@ -68,7 +68,7 @@ ts_w = timeseries(nu(:,3), t,'Name','w');
 ts_p = timeseries(nu(:,4), t,'Name','p');
 ts_q = timeseries(nu(:,5), t,'Name','q');
 ts_r = timeseries(nu(:,6), t,'Name','r');
-save('custom6DOF_nu_split.mat','ts_u','ts_v','ts_w','ts_p','ts_q','ts_r');
+save('testTrajectory_nu_split.mat','ts_u','ts_v','ts_w','ts_p','ts_q','ts_r');
 
 % Quick verification plot
 labels = {'u','v','w','p','q','r'};
