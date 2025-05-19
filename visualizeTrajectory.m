@@ -11,8 +11,8 @@ function visualizeTrajectory(mode, outFile, delayTime, meshScale)
   assert(ismember(mode,{'box','stl'}), 'mode must be ''box'' or ''stl''');
 
   % Load simulation data from base workspace
-  t   = evalin('base','t');     % may be longer than eta!
-  eta = evalin('base','eta');   % M×6 actual logged poses
+  t   = evalin('base','t_sim');     % may be longer than eta!
+  eta = evalin('base','eta_sim');   % M×6 actual logged poses
   nSteps = size(eta,1);         % use the number of rows in eta
 
   % Create figure and axes
