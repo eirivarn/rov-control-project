@@ -38,6 +38,6 @@ for k = 1:N
 end
 
 % 5) save as timeseries
-ts_tau = timeseries(tau_ff, t, 'Name','tau_ff');
-ts_tau.TimeInfo.Units = 'seconds';
-save('feedForwardTau.mat','ts_tau');
+ts_tau_ff = timeseries(tau_ff, t, 'Name','tau_ff');
+ts_tau_ff.TimeInfo.Units = 'seconds';
+save('feedForwardTau.mat','tau_ff');

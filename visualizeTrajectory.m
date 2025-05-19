@@ -1,107 +1,93 @@
-function visualizeTrajectory(mode, outFile, delayTime, meshScale)
-% VISUALIZETRAJECTORY  Animate & save a GIF of ROV pose (box or STL).
-%   visualizeTrajectory(mode,outFile,delayTime,meshScale)
-%     mode      – 'box' or 'stl'
-%     outFile   – output .gif filename
-%     delayTime – pause between frames (s)
-%     meshScale – scale factor for the mesh (default 0.005)
+function visualizeTrajectory(mode, outFile, delayTime, t_ref, eta_ref, t_dyn, eta_dyn)
+% VISUALIZETRAJECTORYREFDYN  Animate & save GIF of ROV following two trajectories
+%   visualizeTrajectoryRefDyn(mode,outFile,delayTime,...
+%       t_ref,eta_ref,t_dyn,eta_dyn)
+%
+%   mode     – 'box' or 'stl'
+%   outFile  – filename for the GIF
+%   delayTime– pause between frames (seconds)
+%   t_ref    – N_ref×1 time vector for reference
+%   eta_ref  – N_ref×6 reference poses [x y z phi theta psi]
+%   t_dyn    – N_dyn×1 time vector for actual
+%   eta_dyn  – N_dyn×6 actual poses
 
-  if nargin < 4, meshScale = 0.005; end
-  if nargin < 3, delayTime = 0.05; end
-  assert(ismember(mode,{'box','stl'}), 'mode must be ''box'' or ''stl''');
+  if nargin<3, delayTime = 0.05; end
 
-  % Load simulation data from base workspace
-  t   = evalin('base','t_sim');     % may be longer than eta!
-  eta = evalin('base','eta_dyn');   % M×6 actual logged poses
-  nSteps = size(eta,1);         % use the number of rows in eta
-
-  % Create figure and axes
+  %--- Create figure & axes ---
   hFig = figure('Color','w','Name','Animation','NumberTitle','off');
   ax   = axes('Parent',hFig);
   view(ax,3); rotate3d(ax,'on');
-  grid(ax,'on'); axis(ax,'equal');
+  hold(ax,'on'); grid(ax,'on'); axis(ax,'equal');
   xlabel(ax,'X'); ylabel(ax,'Y'); zlabel(ax,'Z');
-  hold(ax,'on');
-  plot3(ax, eta(:,1), eta(:,2), eta(:,3), '-k', 'LineWidth',1.2);
-  title(ax,'ROV Trajectory');
+  title(ax,'ROV Trajectory: ref (red) vs actual (blue)');
 
-  % Prepare transform group
+  %--- Plot both full‐path traces ---
+  % Reference in dashed red
+  plot3(ax, eta_ref(:,1), eta_ref(:,2), eta_ref(:,3), '--r', 'LineWidth',1.2);
+  % Actual in solid blue
+  plot3(ax, eta_dyn(:,1), eta_dyn(:,2), eta_dyn(:,3), '-b', 'LineWidth',1.2);
+
+  %--- Set up the ROV mesh transform ---
   tg = hgtransform('Parent',ax);
-
-  % Base orientation fix (90° about Y, then 90° about Z)
-  T0 = makehgtform('yrotate',pi/2,'zrotate',pi/2);
-
+  T0 = eye(4);
   switch mode
     case 'box'
-      % Simple box geometry
-      L = 1; W = 0.5; H = 0.3;
-      V = [-L/2,-W/2,-H/2;  L/2,-W/2,-H/2;  L/2, W/2,-H/2; -L/2, W/2,-H/2; ...
-           -L/2,-W/2, H/2;  L/2,-W/2, H/2;  L/2, W/2, H/2; -L/2, W/2, H/2];
-      F = [1 2 3 4; 5 6 7 8; 1 2 6 5; 2 3 7 6; 3 4 8 7; 4 1 5 8];
-      patch(ax, 'Vertices',V, 'Faces',F, ...
-            'FaceColor',[0.8 0.6 0.4], ...
-            'EdgeColor','k', ...
-            'FaceLighting','gouraud', ...
-            'Parent',tg);
-
+      L=1; Wt=0.5; H=0.3;
+      V = [-L/2,-Wt/2,-H/2; L/2,-Wt/2,-H/2; L/2,Wt/2,-H/2; -L/2,Wt/2,-H/2; ...
+           -L/2,-Wt/2,H/2;  L/2,-Wt/2,H/2;  L/2,Wt/2,H/2;  -L/2,Wt/2,H/2];
+      F = [1 2 3 4;5 6 7 8;1 2 6 5;2 3 7 6;3 4 8 7;4 1 5 8];
+      Rb=[0 0 1;0 1 0;-1 0 0]; V=(Rb*V')';
+      patch(ax,'Vertices',V,'Faces',F,'FaceColor',[0.8 0.6 0.4],...
+            'EdgeColor','k','Parent',tg,'FaceLighting','gouraud');
+      set(tg,'Matrix',T0);
     case 'stl'
-      stlFile = fullfile(pwd,'rov_model.stl');
-      assert(isfile(stlFile),'STL file not found: %s',stlFile);
-      mesh = stlread(stlFile);
+      mesh=stlread('rov_model.stl');
       if isa(mesh,'triangulation')
-        F = mesh.ConnectivityList; V = mesh.Points;
-      elseif isstruct(mesh) && isfield(mesh,'faces') && isfield(mesh,'vertices')
-        F = mesh.faces; V = mesh.vertices;
+        F=mesh.ConnectivityList; V=mesh.Points;
       else
-        error('Unsupported STL format.');
+        F=mesh.faces; V=mesh.vertices;
       end
-      V = double(V);
-      centroid = mean(V,1);
-      V = (V - centroid) * meshScale;
-      patch(ax, 'Faces',F, 'Vertices',V, ...
-            'FaceColor',[0.8 0.8 1], ...
-            'EdgeColor','none', ...
-            'FaceLighting','gouraud', ...
-            'Parent',tg);
-      camlight(ax,'headlight');
-      material(ax,'shiny');
+      if any(F(:)==0), F=F+1; end
+      V=double(V); centroid=mean(V,1); scale=0.005;
+      V=(V-centroid)*scale;
+      T0=makehgtform('yrotate',pi/2,'zrotate',pi/2);
+      patch(ax,'Faces',F,'Vertices',V,'FaceColor',[0.8 0.8 1],...
+            'EdgeColor','none','Parent',tg,'FaceLighting','gouraud');
+      set(tg,'Matrix',T0);
+      camlight(ax,'headlight'); material(ax,'shiny');
+    otherwise
+      error('Unknown mode ''%s''',mode);
   end
 
-  drawnow;
-
-  % Animate and write GIF
+  %--- Animate along the actual trajectory ---
+  nSteps = size(eta_dyn,1);
   for k = 1:nSteps
-    % Extract pose (safe now)
-    pos   = eta(k,1:3);
-    phi   = eta(k,4);
-    theta = eta(k,5);
-    psi   = eta(k,6);
+    % get actual pose
+    pos   = eta_dyn(k,1:3);
+    phi   = eta_dyn(k,4);
+    theta = eta_dyn(k,5);
+    psi   = eta_dyn(k,6);
 
-    % First place the vehicle at the pose, then apply model orientation
-    Tpose = makehgtform( ...
-      'translate',pos, ...
-      'zrotate',psi, ...
-      'yrotate',theta, ...
-      'xrotate',phi );
-    set(tg, 'Matrix', Tpose * T0);
+    % build transform from phi,theta,psi
+    Tm = makehgtform('translate',pos, ...
+                     'zrotate',psi, ...
+                     'yrotate',theta, ...
+                     'xrotate',phi);
+    set(tg,'Matrix', Tm * T0);
 
     drawnow limitrate;
     pause(delayTime);
 
-    % Capture frame and append to GIF
-    try
-      frame = getframe();
-      [imind,cm] = rgb2ind(frame2im(frame),256);
-      if k == 1
-        imwrite(imind,cm,outFile,'gif','LoopCount',Inf,'DelayTime',delayTime);
-      else
-        imwrite(imind,cm,outFile,'gif','WriteMode','append','DelayTime',delayTime);
-      end
-    catch ME
-      warning('Frame %d write failed: %s', k, ME.message);
+    frame = getframe(ax);
+    [imind,cm] = rgb2ind(frame2im(frame),256);
+    if k==1
+      imwrite(imind,cm,outFile,'gif','LoopCount',Inf,'DelayTime',delayTime);
+    else
+      imwrite(imind,cm,outFile,'gif','WriteMode','append','DelayTime',delayTime);
     end
   end
 
   close(hFig);
-  fprintf('Animation complete: %s (mode=%s)\n', outFile, mode);
+  fprintf('Done: %s (mode=%s), ref steps=%d, actual steps=%d\n', ...
+          outFile, mode, numel(t_ref), numel(t_dyn));
 end
