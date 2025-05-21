@@ -1,4 +1,4 @@
-function visualizeTrajectory(mode, outFile, delayTime, t_ref, eta_ref, t_dyn, eta_dyn)
+function visualizeTrajectory(mode, outFile, delayTime, t_sim, eta_real, eta_hat)
 % VISUALIZETRAJECTORYREFDYN  Animate & save GIF of ROV following two trajectories
 %   visualizeTrajectoryRefDyn(mode,outFile,delayTime,...
 %       t_ref,eta_ref,t_dyn,eta_dyn)
@@ -23,9 +23,9 @@ function visualizeTrajectory(mode, outFile, delayTime, t_ref, eta_ref, t_dyn, et
 
   %--- Plot both full‐path traces ---
   % Reference in dashed red
-  plot3(ax, eta_ref(:,1), eta_ref(:,2), eta_ref(:,3), '--r', 'LineWidth',1.2);
+  plot3(ax, eta_real(:,1), eta_real(:,2), eta_real(:,3), '--r', 'LineWidth',1.2);
   % Actual in solid blue
-  plot3(ax, eta_dyn(:,1), eta_dyn(:,2), eta_dyn(:,3), '-b', 'LineWidth',1.2);
+  plot3(ax, eta_hat(:,1), eta_hat(:,2), eta_hat(:,3), '-b', 'LineWidth',1.2);
 
   %--- Set up the ROV mesh transform ---
   tg = hgtransform('Parent',ax);
@@ -60,13 +60,13 @@ function visualizeTrajectory(mode, outFile, delayTime, t_ref, eta_ref, t_dyn, et
   end
 
   %--- Animate along the actual trajectory ---
-  nSteps = size(eta_dyn,1);
+  nSteps = size(eta_hat,1);
   for k = 1:nSteps
     % get actual pose
-    pos   = eta_dyn(k,1:3);
-    phi   = eta_dyn(k,4);
-    theta = eta_dyn(k,5);
-    psi   = eta_dyn(k,6);
+    pos   = eta_hat(k,1:3);
+    phi   = eta_hat(k,4);
+    theta = eta_hat(k,5);
+    psi   = eta_hat(k,6);
 
     % build transform from phi,theta,psi
     Tm = makehgtform('translate',pos, ...
@@ -89,5 +89,5 @@ function visualizeTrajectory(mode, outFile, delayTime, t_ref, eta_ref, t_dyn, et
 
   close(hFig);
   fprintf('Done: %s (mode=%s), ref steps=%d, actual steps=%d\n', ...
-          outFile, mode, numel(t_ref), numel(t_dyn));
+          outFile, mode, numel(t_sim), numel(t_sim));
 end
