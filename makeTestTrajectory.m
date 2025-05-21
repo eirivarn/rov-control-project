@@ -70,6 +70,7 @@ ts_q = timeseries(nu(:,5), t,'Name','q');
 ts_r = timeseries(nu(:,6), t,'Name','r');
 save('testTrajectory_nu_split.mat','ts_u','ts_v','ts_w','ts_p','ts_q','ts_r');
 
+%{
 % Quick verification plot
 labels = {'u','v','w','p','q','r'};
 figure;
@@ -81,3 +82,4 @@ for ch = 1:6
   if ch>4, xlabel('Time (s)'); end
 end
 sgtitle('Custom 6-DOF Test Trajectory');
+%}
