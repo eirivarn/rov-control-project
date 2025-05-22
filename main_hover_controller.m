@@ -1,7 +1,7 @@
 % Builds LTI plant, LQR gains, observer gains, and actuator/mixer params
 
 %% 1) Actuator + geometry parameters
-tau_act = 0.5;                      % thruster time constant [s]
+tau_act = 0.1;                      % thruster time constant [s]
 K      = 40;                       % thrust coefficient [N per unit command]
 F_max  = 30;                       % thrust saturation limit [N]
 Tmix   = buildMixingMatrix();  % 6×8 thruster‐mixing matrix
