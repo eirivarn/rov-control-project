@@ -12,7 +12,7 @@ nu = [ts_u.Data, ts_v.Data, ts_w.Data, ...
 params = rovParameters();  % returns .mass, .I, .Ma_lin, .Ma_rot, .D_lin, .D_quad
 
 % 3) compute nu̇ with centered differences
-dt = t(2)-t(1);
+dt = t(2)-t(1);a
 nu_dot = zeros(size(nu));
 nu_dot(1,:)       = (nu(2,:) - nu(1,:)) / dt;
 nu_dot(end,:)     = (nu(end,:) - nu(end-1,:)) / dt;
