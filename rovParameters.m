@@ -1,24 +1,43 @@
 function params = rovParameters()
-% ROVPARAMETERS  Return a struct of physical parameters for the ROV.
+% ROVPARAMETERS  Return fixed struct of BlueROV2 parameters (codegen‐safe)
 
-  % Mass and inertia
-  params.mass       = 50;                  % kg
-  params.I          = diag([2, 3, 4]);     % kg·m^2
+  % basic
+  rho    = 1000;          % kg/m^3
+  g      = 9.82;          % m/s^2
+  volume = 0.0134;        % m^3
 
-  % Added-mass (positive values)
-  params.Ma_lin     = [20;20;20];          % [Xu_dot; Yv_dot; Zw_dot]
-  params.Ma_rot     = [1;1;1];             % [Kp_dot; Mq_dot; Nr_dot]
+  % rigid‐body
+  mass = 13.5;            % kg
+  I    = diag([0.26,0.23,0.37]);  % kg·m^2
 
-  % Damping coefficients (linear and quadratic)
-  params.D_lin      = [30;30;30;2;2;2];     % [Xu; Yv; Zw; Kp; Mq; Nr]
-  params.D_quad     = [40;40;40;5;5;5];     % [Xu|u|; Yv|v|; Zw|w|; ... ]
+  % added mass
+  Ma_lin = [6.36;7.12;18.68];
+  Ma_rot = [0.189;0.135;0.222];
 
-  % Buoyancy / hydrostatic
-  params.rho        = 1025;                % kg/m^3
-  params.g          = 9.81;                % m/s^2
-  params.volume     = 0.05;                % m^3 (displaced water)
+  % damping
+  D_lin  = [30;30;30;2;2;2];
+  D_quad = [40;40;40;5;5;5];
 
-  % CG/CB offsets (if you implement restoring moments)
-  params.rG         = [0;0;0];             % m
-  params.rB         = [0;0;0.1];           % m
+  % CG/CB offsets
+  rG = [0;0;0];
+  rB = [0;0;-0.01];
+
+  % ocean current
+  current = [0;0;0];
+
+  % build one struct literal
+  params = struct( ...
+    'mass',      mass,    ...
+    'I',         I,       ...
+    'Ma_lin',    Ma_lin,  ...
+    'Ma_rot',    Ma_rot,  ...
+    'D_lin',     D_lin,   ...
+    'D_quad',    D_quad,  ...
+    'rho',       rho,     ...
+    'g',         g,       ...
+    'volume',    volume,  ...
+    'rG',        rG,      ...
+    'rB',        rB,      ...
+    'current',   current  ...
+  );
 end
