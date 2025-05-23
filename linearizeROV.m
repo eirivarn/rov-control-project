@@ -1,30 +1,25 @@
-function [A_lin, B_lin] = linearizeROV(phi, theta)
-% LINEARIZEROV  Return small-perturbation A,B about a trim at (phi,theta,0)
-%
-%   [A_lin,B_lin] = linearizeROV(phi,theta) uses your existing
-%   rovParameters() and rovHoverModel() to get the nominal
-%   hover-point linearization (at phi=theta=0), then transforms
-%   that A,B into the body frame rotated by phi about X and theta about Y.
+function [A_lin, B_lin] = linearizeROV(phi, theta, psi)
+  % 1) get hover linearization at zero attitude
+  [~, A0, B0] = rovWithActuators();  % A0:20x20, B0:20x8
 
-  %--- 1) Get nominal hover A0,B0 ---
-  sys0 = rovHoverModel();
-  [A0, B0] = ssdata(sys0);  % A0 is 12×12, B0 is 12×6
+  % 2) build R = Rz(psi)*Ry(theta)*Rx(phi)
+  cph = cos(phi);   sph = sin(phi);
+  cth = cos(theta); sth = sin(theta);
+  cps = cos(psi);   sps = sin(psi);
+  Rz = [ cps, -sps, 0; sps, cps, 0; 0,0,1 ];
+  Ry = [ cth, 0, sth;   0,1,0;  -sth,0,cth ];
+  Rx = [ 1,0,0; 0,cph,-sph; 0,sph,cph ];
+  R_3 = Rz * Ry * Rx;  
 
-  %--- 2) Build the rotation matrix R(φ,θ) for the body axes ---
-  % Note: this is a 3×3 rotation of the body frame.
-  R_phi   = [1      0           0;
-             0 cos(phi) -sin(phi);
-             0 sin(phi)  cos(phi)];
-  R_theta = [ cos(theta) 0 sin(theta);
-                    0    1     0;
-             -sin(theta) 0 cos(theta)];
-  R12 = R_phi * R_theta;     % first pitch, then roll
+  % 3) lift to 12×12 for the hydro states (6 pos+orient, 6 vel)
+  T_hydro = blkdiag(R_3, R_3, R_3, R_3);  % 4 blocks of size 3
+  %    block ordering must match your state ordering in rovWithActuators:
+  %    [x;y;z], [phi;theta;psi], [u;v;w], [p;q;r]
 
-  %--- 3) Lift to 12×12 block-diag for position+velocity subspace ---
-  T = blkdiag(R12, R12, R12, R12);  % Now T is 12x12
+  % 4) full 20×20 transform
+  T = blkdiag(T_hydro, eye(8));
 
-  %--- 4) Rotate A0,B0 into this trimmed frame ---
-  A_lin = T * A0 * T';       % similarity transform
-  B_lin = T * B0;            % inputs rotate with body
-
+  % 5) similarity transform
+  A_lin = T * A0 * T';
+  B_lin = T * B0;
 end

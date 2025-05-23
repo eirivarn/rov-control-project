@@ -1,63 +1,50 @@
-% Precompute a 6×6 grid (36 points) of LQR+integrator gains.
 deg = pi/180;
+Nphi   = 6;   Ntheta = 6;   Npsi = 6;
+phi_vals   = linspace(-60, 60, Nphi)*deg;
+theta_vals = linspace(-60, 60, Ntheta)*deg;
+psi_vals   = linspace(-180,180, Npsi)*deg;
 
-% 1) grid of roll φ and pitch θ trims
-phi_vals   = linspace(-30, 30, 6)*deg;   
-theta_vals = linspace(-30, 30, 6)*deg;   
+% Pre-allocate
+Ngrid = Nphi * Ntheta * Npsi;
+% We will discover (n,m) on the first linearization
+Kx_all  = [];
+Ki_all  = [];
+grid_pts = zeros(Ngrid,3);
 
-% 2) base linearization at zero (just to get dimensions)
-[sys0, A0, B0] = rovWithActuators();  % ensure this returns A0,B0
-n  = size(A0,1);
-m  = size(B0,2);
-ni = 6;
-
-% 3) allocate storage
-Kx_all = zeros(m, n, numel(phi_vals)*numel(theta_vals));
-Ki_all = zeros(m, ni, numel(phi_vals)*numel(theta_vals));
-grid_pts = zeros(numel(phi_vals)*numel(theta_vals), 2);
-
-% 4) cost settings
-Qx = eye(n);
-Qu = 0.1*eye(m);
-Qi = 10;
-
-% 5) loop over trims
+% Loop & linearize
 idx = 0;
-for i = 1:numel(phi_vals)
-  for j = 1:numel(theta_vals)
-    idx = idx + 1;
-    phi0   = phi_vals(i);
-    theta0 = theta_vals(j);
+for i = 1:Nphi
+  for j = 1:Ntheta
+    for k = 1:Npsi
+      idx = idx + 1;
+      phi0   = phi_vals(i);
+      theta0 = theta_vals(j);
+      psi0   = psi_vals(k);
 
-    % --------------------------------------------------------------------
-    % LINEARIZE YOUR PLANT AT (phi0,theta0)
-    % --------------------------------------------------------------------
-    % You need a function that takes (phi0,theta0) and returns (A,B).
-    % If you have a Simulink model 'rov_kinematics_level3', you could do:
-    %
-    %   op = operpoint('rov_kinematics_level3');
-    %   op.States(4).x = phi0;    % set phi
-    %   op.States(5).x = theta0;  % set theta
-    %   io = getlinio('rov_kinematics_level3');
-    %   syslin = linearize('rov_kinematics_level3', op, io);
-    %   [A,~,B,~] = ssdata(syslin);
-    %
-    % For simplicity, here we just reuse the zero‐trim A0,B0:
-    A = A0;
-    B = B0;
-    % --------------------------------------------------------------------
+      % 1) linearize the 6-state simple model at this trim
+      [A, B] = linearizeROV(phi0, theta0, psi0);  % A:6x6, B:6x6
 
-    % store grid point
-    grid_pts(idx,:) = [phi0, theta0];
+      % On first pass, allocate Kx_all & Ki_all and set cost matrices
+      if idx==1
+        [n, m] = deal(size(A,1), size(B,2));  % n=6, m=6
+        % Cost matrices now sized for 6-state + 6-integrators
+        Qx = eye(n);
+        Qu = 0.1*eye(m);
+        Qi = 10;
+        Kx_all  = zeros(m, n,  Ngrid);
+        Ki_all  = zeros(m, 6,  Ngrid);
+      end
 
-    % design LQR+integrator at this trim
-    [Kx, Ki] = designHoverControllerAtTrim(A, B, Qx, Qu, Qi);
+      % Store trim angles
+      grid_pts(idx,:) = [phi0, theta0, psi0];
 
-    % save
-    Kx_all(:,:,idx) = Kx;
-    Ki_all(:,:,idx) = Ki;
+      % Design LQR + integrators for this (A,B)
+      [Kx_all(:,:,idx), Ki_all(:,:,idx)] = ...
+         designHoverControllerAtTrim(A, B, Qx, Qu, Qi);
+    end
   end
 end
 
-% 6) save to .mat
-save('gainGrid36.mat', 'phi_vals', 'theta_vals', 'grid_pts', 'Kx_all', 'Ki_all');
+% Save for Simulink
+save('gainGrid3D.mat', 'phi_vals','theta_vals','psi_vals', ...
+                      'grid_pts','Kx_all','Ki_all');

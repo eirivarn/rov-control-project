@@ -1,36 +1,38 @@
 function [Kx, Ki] = designHoverControllerAtTrim(A, B, Qx, Qu, Qi)
-% designHoverControllerAtTrim  LQR+integrator gains for a given linearized plant
+% DESIGNHOVERCONTROLLERATTRIM  LQR+integrator gains for 6-state model
 %
-% [Kx,Ki] = designHoverControllerAtTrim(A,B,Qx,Qu,Qi)
-%   A,B    : linearized state‐space at the trim point
-%   Qx     : state-cost (n×n)
-%   Qu     : input-cost (m×m)
-%   Qi     : integrator-cost scalar
-%
-%   Returns: Kx (m×n), Ki (m×ni) where ni=6
+% Inputs:
+%   A  – n×n (here n=6)
+%   B  – n×m (here m=6)
+%   Qx – n×n
+%   Qu – m×m
+%   Qi – scalar
+% Outputs:
+%   Kx – m×n
+%   Ki – m×6
 
   % sizes
-  n  = size(A,1);
-  m  = size(B,2);
-  ni = 6;  % integrators on the first six outputs
+  n  = size(A,1);    % should be 6
+  m  = size(B,2);    % should be 6
+  ni = 6;            % number of integrators
 
-  % build C_int to integrate position/orientation errors (states 1–6)
+  % integrator on the first ni outputs
   C_int = eye(ni,n);
 
-  % augmented plant
+  % augmented plant (n+ni states, m inputs)
   Ai = [ A,           zeros(n,ni);
-        -C_int,      zeros(ni)   ];
+        -C_int,      zeros(ni) ];
   Bi = [ B;
          zeros(ni,m) ];
 
-  % cost matrices
+  % cost matrices (now correct size: (n+ni)×(n+ni))
   Q = blkdiag(Qx, Qi*eye(ni));  
   R = Qu;
 
   % solve LQR
   Kfull = lqr(Ai, Bi, Q, R);
 
-  % partition gains
+  % partition
   Kx = Kfull(:, 1:n);
   Ki = Kfull(:, n+1:end);
 end

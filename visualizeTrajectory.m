@@ -1,4 +1,4 @@
-function visualizeTrajectory(mode, outFile, fps, t_sim, eta_real, eta_hat)
+function visualizeTrajectory(mode, outFile, fps, t_sim, eta_ref, eta_hat)
 % VISUALIZETRAJECTORY  Animate & save GIF of ROV following two trajectories
 %   visualizeTrajectory(mode,outFile,fps, ...
 %                       t_sim,eta_real,eta_hat)
@@ -24,7 +24,7 @@ function visualizeTrajectory(mode, outFile, fps, t_sim, eta_real, eta_hat)
     title(ax,'ROV Trajectory: ref (red) vs actual (blue)');
 
     %% plot static traces
-    plot3(ax, eta_real(:,1), eta_real(:,2), eta_real(:,3), '--r', 'LineWidth',1.2);
+    plot3(ax, eta_ref(:,1), eta_ref(:,2), eta_ref(:,3), '--r', 'LineWidth',1.2);
     plot3(ax, eta_hat(:,1 ), eta_hat(:,2 ), eta_hat(:,3 ), '-b', 'LineWidth',1.2);
 
     %% build ROV mesh under hgtransform
