@@ -97,7 +97,7 @@ function visualizeTrajectory(mode, outFile, fps, t_sim, eta_ref, eta_hat)
         set(tg, 'Matrix', Tm * T0);
 
         drawnow limitrate
-
+        pause(0.01);
         % capture & write GIF frame
         frame = getframe(ax);
         [imind, cm] = rgb2ind(frame2im(frame), 256);

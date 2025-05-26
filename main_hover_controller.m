@@ -12,7 +12,6 @@ useSBL          = true;   % position x, y (USBL/SBL)
 %% 1) Actuator + geometry parameters
 tau_act = 0.1;                      % thruster time constant [s]
 K       = 40;                       % thrust coefficient [N per unit command]
-F_max   = 30;                       % thrust saturation limit [N]
 Tmix    = buildMixingMatrix();      % 6×8 thruster-mixing matrix
 
 %% 2) Augmented 6-DOF + actuator plant
