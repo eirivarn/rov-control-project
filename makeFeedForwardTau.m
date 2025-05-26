@@ -24,6 +24,9 @@ tau_ff = zeros(N,6);
 % precompute rigid-body inertia
 M_rb = [ p.mass*eye(3), zeros(3);
          zeros(3),      p.I ];
+M_A  = diag([p.Ma_lin; p.Ma_rot]);
+M_R  = M_rb + M_A;
+
 invM = inv(M_rb);
 
 for k = 1:N
@@ -35,6 +38,8 @@ for k = 1:N
     % 4.2 restoring g(eta)
     phi   = eta(k,4);
     theta = eta(k,5);
+    eps_ang = 1e-3;   % ~0.057° buffer
+    theta = max(min(theta,  pi/2 - eps_ang), -pi/2 + eps_ang);
     W     = p.mass * p.g;
     B     = p.rho * p.g * p.volume;
     dW    = W - B;
@@ -44,7 +49,7 @@ for k = 1:N
     g(3) = -dW * cos(theta) * cos(phi);
     
     % 4.3 assemble τ_ff_simple
-    tau_ff(k,:) = ( M_rb  * nu_dot(k,:)' ...
+    tau_ff(k,:) = ( M_R  * nu_dot(k,:)' ...
                   + D     * nu(k,:)' ...
                   + g )';
 end
