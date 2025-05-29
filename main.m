@@ -3,6 +3,7 @@
 % with toggleable onboard measurements.
 clear; clc;
 
+p = rovParameters();
 
 %% 0) User toggles: enable or disable each sensor here
 usePressure     = true;   % depth z
@@ -14,8 +15,16 @@ useSBL          = true;   % position x, y (USBL/SBL)
 %% 1) Actuator + geometry parameters
 tau_act = 0.1;                      % thruster time constant [s]
 K       = 40;                       % thrust coefficient [N per unit command]
-F_max   = 1000;                       % thrust saturation limit [N]
+F_max   = 1000;                     % thrust saturation limit [N]
 Tmix    = buildMixingMatrix();      % 6×8 thruster-mixing matrix
+
+% what thrust each thruster must hold to hover [N]:
+f0 = pinv(Tmix) * p.u0;           
+
+% convert to normalized command units:
+u0_cmd = pinv(Tmix)*rovParameters().u0 / K;
+assignin('base','u0_cmd', u0_cmd);
+
 
 %% 2) Augmented 6-DOF + actuator plant
 [sys_aug, A_aug, B_aug, C_aug, D_aug] = rovWithActuators();
@@ -31,11 +40,11 @@ Qi = 10;              % integrator-cost
 
 %% 4) Sensor selection & measurement matrices
 % We define for each sensor its state-index(es) and noise variance:
-%   Pressure → z (3)        var = 1e-5
-%   IMU      → φ,θ (4,5)    var = 1e-4 each
-%   Magnetom.→ ψ (6)        var = 1e-3
-%   DVL      → u,v (7,8)    var = 1e-2 each
-%   SBL      → x,y (1,2)    var = 1e-1 each
+%   Pressure → z (3)        
+%   IMU      → φ,θ (4,5)    
+%   Magnetom.→ ψ (6)        
+%   DVL      → u,v (7,8)    
+%   SBL      → x,y (1,2)    
 
 measIdx  = [];
 Rn_vals  = [];
@@ -70,7 +79,6 @@ if useDVL
     Rn_vals(end+1:end+2) = [1e-2, 1e-2];
 end
 
-% now build C_sens, D_sens and LQE as before
 p = numel(measIdx);
 C_sens = zeros(p, n);
 for i = 1:p
@@ -90,17 +98,24 @@ A_obs = A_aug - L_sens * C_sens;
 B_obs = [ B_aug,   L_sens ];     % inputs = [thruster_cmds; measurements]
 C_obs = eye(n);
 D_obs = zeros(n, size(B_obs,2));
+
 sys_observer = ss(A_obs, B_obs, C_obs, D_obs);
 
 %% 6) Closed-loop LTI (analysis only)
 C_int = C_aug(1:ni, :);
+
 Acl   = [ A_aug - B_aug*Kx,  -B_aug*Ki
          -C_int,             zeros(ni) ];
+
 Br = [ zeros(n,ni); eye(ni) ];
+
 Bd = [ eye(n), zeros(n,ni);
        zeros(ni,n), zeros(ni,ni) ];
+
 Ccl = [ eye(n), zeros(n,ni) ];
+
 Dcl = zeros(n, size(Br,2)+size(Bd,2));
+
 sys_cl = ss(Acl, [Br, Bd], Ccl, Dcl);
 
 %% Gain-Scheduling 

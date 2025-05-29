@@ -5,7 +5,6 @@ function [sys_aug, A_aug, B_aug, C_aug, D_aug, Tmix] = rovWithActuators()
   % 2) actuator params
   K     = 40;      % N per unit command
   tau   = 0.1;     % time constant [s]
-  F_max = 30;      % max thrust [N]
 
   % 3) mixing
   Tmix = buildMixingMatrix();  % 6×8
