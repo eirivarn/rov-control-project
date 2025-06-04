@@ -2,9 +2,10 @@
 
 This guide provides basic steps to run the simulations and scripts associated with the ROV Control Project. Ensure all project files (MATLAB scripts `.m`, Simulink models `.slx`, and `rov_model.stl`) are in your MATLAB path or current directory.
 
-###Prerequisites
+### Prerequisites
 * **MATLAB and Simulink:** You need a working installation of MATLAB and Simulink. It's assumed that standard toolboxes like the Control System Toolbox™ (for functions like `lqr`, `lqe`, `ss`) are available.
-* **Git:** The project code is managed using Git. If you don't have Git installed, download and install it from the official website: [https://git-scm.com/downloads](https://git-scm.com/downloads). Follow the installation instructions for your operating system.
+* **Git:** The project code is managed using Git. If you don't have Git installed, download and install it from the official website:
+* [https://git-scm.com/downloads](https://git-scm.com/downloads). Follow the installation instructions for your operating system.
 
 ### Cloning the Repository
 The project files are hosted in a Git repository. To get the code:
