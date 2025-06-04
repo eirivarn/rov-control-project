@@ -7,7 +7,7 @@ clear; clc; close all
 % --- LQR Controller Tuning (Initialized to your "best results") ---
 Qx_tune = diag([ones(1,6)*2.5, zeros(1,6), zeros(1,8)]);
 Qu_tune_scalar = 0.05;
-Qi_tune = 25;
+Qi_tune = 0.001;
 
 % --- Observer (LQE) Tuning ---
 % Qn_tune_scalar: Process noise covariance scalar. Qn = Qn_tune_scalar * eye(n).
