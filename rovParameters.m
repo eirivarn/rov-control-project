@@ -1,0 +1,59 @@
+function params = rovParameters()
+  %#codegen
+
+  % 1) Compute all scalars and matrices first:
+  rho    = 1000;
+  g      = 9.82;
+  volume = 0.0134;
+  mass   = 13.5;
+  I      = diag([0.26, 0.23, 0.37]);
+  Ma_lin = [6.36; 7.12; 18.68];
+  Ma_rot = [0.189; 0.135; 0.222];
+  D_lin  = [13.7; 0; 33.0; 0; 0.8; 0];
+  D_quad = [141; 217; 190; 1.19; 0.47; 1.5];
+  rG     = [0; 0; 0];
+  rB     = [0; 0; -0.01];
+
+  W       = mass * g;
+  B       = rho * g * volume;
+  dW      = W - B;
+  u0      = [0;0;-dW;0;0;0];
+
+  G = zeros(6);
+  G(1,5) =  dW;     % heave–pitch coupling
+  G(2,4) = -dW;     % surge–roll coupling
+  G(4,4) = -rB(3)*dW;  % roll restoring
+  G(5,5) = -rB(3)*dW;  % pitch restoring
+
+
+  M_rb    = diag([mass; mass; mass; diag(I)]);
+  M_a     = diag([Ma_lin; Ma_rot]);
+  M_total = M_rb + M_a;
+
+  D0 = diag(D_lin);
+
+  % 2) Then create the struct _once_:
+  params = struct( ...
+    'rho',     rho,      ...
+    'g',       g,        ...
+    'volume',  volume,   ...
+    'mass',    mass,     ...
+    'I',       I,        ...
+    'Ma_lin',  Ma_lin,   ...
+    'Ma_rot',  Ma_rot,   ...
+    'D_lin',   D_lin,    ...
+    'D_quad',  D_quad,   ...
+    'rG',      rG,       ...
+    'rB',      rB,       ...
+    'W',       W,        ...
+    'B',       B,        ...
+    'u0',      u0,       ...
+    'G',       G,        ...
+    'M_total', M_total,  ...
+    'D0',      D0        ...
+  );
+
+
+  assignin('base','params',params);
+  
+end
