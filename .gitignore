@@ -2,7 +2,7 @@ rov_model.STL
 *.asv
 *.mat
 *.gif
-
+*.key
 # MATLAB
 # Compiled output
 *.mex*

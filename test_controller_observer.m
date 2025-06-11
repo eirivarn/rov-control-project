@@ -7,12 +7,10 @@ clear; clc; close all
 % --- LQR Controller Tuning (Initialized to your "best results") ---
 Qx_tune = diag([ones(1,6)*2.5, zeros(1,6), zeros(1,8)]);
 Qu_tune_scalar = 0.05;
-Qi_tune = 0.001;
-
+Qi_tune = 25;
 % --- Observer (LQE) Tuning ---
 % Qn_tune_scalar: Process noise covariance scalar. Qn = Qn_tune_scalar * eye(n).
 Qn_tune_scalar = 1e-2; % Kept from previous alignment
-
 % Rn_vals_tune_SENSOR: Individual measurement noise variances (sigma^2) for each sensor.
 % Initialized to match report values.
 Rn_vals_tune_SBL       = [1.3e-3, 1.3e-3]; % Aligned with report
@@ -20,46 +18,44 @@ Rn_vals_tune_Pressure  = 1.5e-5;         % Aligned with report
 Rn_vals_tune_IMU       = [1e-5, 1e-5];     % Aligned with report
 Rn_vals_tune_Mag       = 1e-5;           % Aligned with report
 Rn_vals_tune_DVL       = [2.5e-5, 2.5e-5]; % Aligned with report
-
 % --- Sensor Selection (used in Observer design, Section 7) ---
 usePressure_obs     = true;  % z
 useIMU_obs          = true;  % phi, theta
 useMagnetometer_obs = true;  % psi
 useDVL_obs          = true;  % u, v
 useSBL_obs          = true;  % x, y
-
 fprintf('=== Using Tunable Parameters ===\n');
 fprintf('LQR: Qi_tune = %g, Qu_tune_scalar = %g (for Qu=Qu_scalar*eye(m))\n', Qi_tune, Qu_tune_scalar);
 fprintf(' Using Qx_tune as defined. Checksum: %g\n', sum(Qx_tune(:)));
 fprintf('Observer: Qn_tune_scalar = %g (for Qn=Qn_scalar*eye(n))\n', Qn_tune_scalar);
 fprintf(' Rn_vals (aligned with report) for SBL=[%g,%g], Pressure=%g, IMU=[%g,%g], Mag=%g, DVL=[%g,%g]\n', ...
     Rn_vals_tune_SBL, Rn_vals_tune_Pressure, Rn_vals_tune_IMU, Rn_vals_tune_Mag, Rn_vals_tune_DVL);
-
 %% 1) Build the 20‐state “hydro + actuator” model
 [sys_aug, A_aug, B_aug, C_aug, ~, Tmix] = rovWithActuators();
 n  = size(A_aug,1);
 m  = size(B_aug,2);
 ni = 6;
-
 % Validate Qx_tune dimensions if it was user-defined as a matrix
 if ~all(size(Qx_tune) == [n,n])
     warning('User-defined Qx_tune has incorrect dimensions for n=%d. Check definition.', n);
     % Potentially halt or revert to a default if critical, but for now, just warn.
 end
-
 fprintf('\n=== Model Dimensions ===\n');
 fprintf('A_aug: %d×%d, B_aug: %d×%d, C_aug: %d×%d, Tmix: %d×%d\n', ...
     size(A_aug,1), size(A_aug,2), size(B_aug,1), size(B_aug,2), ...
     size(C_aug,1), size(C_aug,2), size(Tmix,1), size(Tmix,2));
-
 %% 2) Mixing Matrix Rank (No changes, independent of tuning)
 rank_Tmix = rank(Tmix);
 sv_Tmix   = svd(Tmix);
 fprintf('\n=== Mixing Matrix Tmix ===\n');
 fprintf('rank(Tmix) = %d (expected 6)\n', rank_Tmix);
 fprintf('singular values of Tmix = [%s]\n', sprintf('%6.3f ', sv_Tmix));
-
-%% 3) Reachability & Observability of (A_aug, B_aug, C_aug) (Independent of tuning)
+%% 3) Instantaneous Reachability & Observability (Standard Method)
+% This section checks the instantaneous properties. A rank deficiency here
+% is expected for a physical system with integrators (like position) and
+% unmeasured states (like actuator forces). The key is that the system
+% is "stabilizable" and "detectable", meaning all unstable modes can be
+% controlled and observed, which is sufficient for the controller to work.
 C_hydro_test = [eye(12), zeros(12, n-12)];
 Wc_full  = ctrb(A_aug, B_aug);
 rWc_full = rank(Wc_full);
@@ -67,30 +63,24 @@ svWc_full = svd(Wc_full);
 Wo_full  = obsv(A_aug, C_hydro_test);
 rWo_full = rank(Wo_full);
 svWo_full = svd(Wo_full);
-fprintf('\n=== Gramian Checks (A_aug, B_aug, C_hydro_test for observability) ===\n');
+fprintf('\n=== Instantaneous Gramian Checks (ctrb/obsv) ===\n');
 fprintf('Controllability: rank = %d/%d,  min(sv) = %8.4e\n', rWc_full, n, min(svWc_full(svWc_full > 1e-9)));
 fprintf('Observability (of hydro states): rank = %d/%d,  min(sv) = %8.4e\n', rWo_full, n, min(svWo_full(svWo_full > 1e-9)));
-
 %% 4) Design LQR + integrators (Using tunable Qx, Qu, Qi)
 Qx_LQR = Qx_tune;
 Qu_LQR = Qu_tune_scalar * eye(m);
 Qi_LQR = Qi_tune;
-
 [Kx, Ki] = designHoverController(Qx_LQR, Qu_LQR, Qi_LQR);
-
 if size(C_aug,1) >= ni
     C_int = C_aug(1:ni,:);
 else
     C_int = [eye(ni), zeros(ni, n-ni)];
 end
-
 Acl = [ A_aug - B_aug*Kx,   -B_aug*Ki;
         -C_int,             zeros(ni, ni) ];
 fprintf('\n=== Controller Gains (Using Tuned Qx, Qu, Qi) ===\n');
 fprintf('Kx size: %d×%d,   Ki size: %d×%d\n', size(Kx), size(Ki));
 fprintf('Used: Qi=%g, Qu_scalar=%g. Qx checksum: %g\n', Qi_LQR, Qu_tune_scalar, sum(Qx_LQR(:)));
-
-
 %% 5) Closed‐Loop Eigenvalues & Damping (Results depend on tuned gains)
 lambda_cl = eig(Acl);
 fprintf('\n=== Closed‐Loop Eigenvalues ===\n');
@@ -119,7 +109,6 @@ for i = 1:length(wn_cl_filtered)
     fprintf('  Mode %2d: wn = %6.3f,  zeta = %5.3f (Pole: %+8.4e %+8.4ej)\n', ...
             i, wn_cl_filtered(i), zeta_cl_filtered(i), real(poles_filtered(i)), imag(poles_filtered(i)));
 end
-
 %% 6) Linear Step‐Response Performance (per DOF) (Results depend on tuned gains)
 Bcl_ref = [ zeros(n, ni); eye(ni) ];
 Ccl_plant_outputs = [eye(ni), zeros(ni, n-ni)];
@@ -172,11 +161,9 @@ for i = 1:ni
     fprintf('DOF %2d: ss error = %8.4e,  overshoot = %5.2f%%,  settling time = %5.2f s\n', ...
             i, err_ss, overshoot, t_settle);
 end
-
 %% 7) Design Observer (Kalman/Luenberger) using tunable Qn and report-aligned Rn_vals
 measIdx = [];
 Rn_vals_active = [];
-
 if useSBL_obs
     measIdx(end+1:end+2) = [1, 2];
     Rn_vals_active(end+1:end+2) = Rn_vals_tune_SBL;
@@ -197,7 +184,6 @@ if useDVL_obs
     measIdx(end+1:end+2) = [7, 8];
     Rn_vals_active(end+1:end+2) = Rn_vals_tune_DVL;
 end
-
 p_num_meas = numel(measIdx);
 if p_num_meas == 0
     error('No sensors selected for the observer. Halting.');
@@ -206,25 +192,20 @@ C_sens = zeros(p_num_meas, n);
 for k_sens = 1:p_num_meas
     C_sens(k_sens, measIdx(k_sens)) = 1;
 end
-
 Qn_obs = Qn_tune_scalar * eye(n);
 Rn_obs = diag(Rn_vals_active);
 G_proc_noise = eye(n);
-
 L_sens = lqe(A_aug, G_proc_noise, C_sens, Qn_obs, Rn_obs);
 L_hydro    = L_sens(1:12, :);
 L_actuator = L_sens(13:20, :);
-
 A_obs = A_aug - L_sens * C_sens;
 B_obs = [ B_aug,   L_sens ];
 C_obs = eye(n);
 D_obs = zeros(n, size(B_obs,2));
-
 fprintf('\n=== Observer Design (Using Tuned Qn and Report-Aligned Rn) ===\n');
 fprintf('Active sensors (measIdx): [%s]\n', num2str(measIdx));
 fprintf('C_sens size: %d×%d,   Rn_obs (diag(Rn_vals_active)) size: %d×%d\n', size(C_sens), size(Rn_obs));
 fprintf('L_sens size: %d×%d. Used Qn_scalar=%g.\n', size(L_sens), Qn_tune_scalar);
-
 Wo_obs = obsv(A_aug, C_sens);
 rWo_obs = rank(Wo_obs);
 svWo_obs_nz = svd(Wo_obs);
@@ -233,11 +214,10 @@ min_svWo_obs = 0;
 if ~isempty(svWo_obs_nz)
     min_svWo_obs = min(svWo_obs_nz);
 end
-fprintf('\nObservability (with selected sensors): rank = %d/%d, min(sv) = %8.4e\n', rWo_obs, n, min_svWo_obs);
+fprintf('\nObservability (with selected sensors, instantaneous): rank = %d/%d, min(sv) = %8.4e\n', rWo_obs, n, min_svWo_obs);
 eig_obs = eig(A_obs);
 slowest_obs_pole = max(real(eig_obs));
 fprintf('Slowest observer pole (real part) = %+8.4e\n', slowest_obs_pole);
-
 %% 8) Observer Convergence (Results depend on tuned observer gains)
 Tend_obs = 2; dt_obs = 0.002; t_obs = (0:dt_obs:Tend_obs)';
 nt_obs = numel(t_obs);
@@ -270,7 +250,6 @@ if isempty(idx_thresh)
 else
     fprintf('Error dropped below 1e-3 at t = %.3f s\n', t_obs(idx_thresh));
 end
-
 %% 9) Combined Closed‐Loop w/ Observer (Results depend on all tuned gains)
 Tend_cl = 15; dt_cl = 0.01; t_cl = (0:dt_cl:Tend_cl)';
 nt_cl = numel(t_cl);
@@ -316,4 +295,5 @@ if isnan(time_to_reach_tracking_threshold_z)
 else
     fprintf('z-tracking error < 0.01m (1cm) at t = %.2f s\n', time_to_reach_tracking_threshold_z);
 end
+
 fprintf('\n=== End of Tunable Parameter Tests ===\n');
